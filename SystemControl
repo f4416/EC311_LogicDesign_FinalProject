@@ -3,25 +3,23 @@
 module SystemControl(
     input wire clk,
     input wire reset,
-    // Inputs from user interface
     input wire [7:0] userData,
-    input wire userDone,  // Signal indicating user has entered data
-    // Outputs to user interface
+    input wire userDone,
+    input wire [7:0] enteredUsername,
+    input wire [7:0] enteredPassword,
     output reg askForData,
-    // Signals to/from storage
     output reg [7:0] storageData,
     input wire [7:0] storedData,
-    // Control signals for encryption/decryption
     output reg startEncrypt,
     output reg startDecrypt,
     input wire doneEncrypt,
     input wire doneDecrypt,
-    // Data flow between encryption/decryption and storage
     input wire [7:0] encryptedData,
-    input wire [7:0] decryptedData
+    input wire [7:0] decryptedData,
+    parameter [7:0] CORRECT_USERNAME = 8'b10101010;
+    parameter [7:0] CORRECT_PASSWORD = 8'b01010101
 );
 
-// Define states for the control module
 localparam WAIT_FOR_INPUT = 0,
            STORE_DATA = 1,
            ENCRYPT_DATA = 2,
@@ -30,7 +28,10 @@ localparam WAIT_FOR_INPUT = 0,
 
 reg [2:0] state;
 
-// Control logic
+reg [7:0] username;
+reg [7:0] password;
+reg authentication_success;
+
 always @(posedge clk or posedge reset) begin
     if (reset) begin
         // Reset logic
@@ -38,17 +39,23 @@ always @(posedge clk or posedge reset) begin
         askForData <= 1;
         startEncrypt <= 0;
         startDecrypt <= 0;
+        username <= CORRECT_USERNAME;
+        password <= CORRECT_PASSWORD;
+        authentication_success <= 0;
     end
     else begin
         case (state)
             WAIT_FOR_INPUT: begin
                 if (userDone) begin
-                    storageData <= userData;
-                    state <= STORE_DATA;
+                    if ((enteredUsername == username) && (enteredPassword == password)) begin
+                        storageData <= userData;
+                        state <= STORE_DATA;
+                    end else begin
+                        askForData <= 1;
+                    end
                 end
             end
             STORE_DATA: begin
-                // Assuming storage operation completes in one cycle
                 startEncrypt <= 1;
                 state <= ENCRYPT_DATA;
             end
